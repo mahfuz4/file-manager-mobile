@@ -1,4 +1,4 @@
-name: r2_file_manager
+name: FileFort
 description: A Cloudflare R2 File Manager with Firebase Auth — dark orange theme.
 publish_to: 'none'
 version: 1.0.0+1
@@ -53,8 +53,15 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
   assets:
     - .env
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  remove_alpha_ios: true
