@@ -41,18 +41,18 @@ Future<void> main() async {
     debugPrint('Firebase initialization error: $e');
   }
 
-  runApp(const R2FileManagerApp());
+  runApp(const FileFortApp());
 }
 
-class R2FileManagerApp extends StatelessWidget {
-  const R2FileManagerApp({super.key});
+class FileFortApp extends StatelessWidget {
+  const FileFortApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => FileManagerProvider(),
       child: MaterialApp(
-        title: 'R2 File Manager',
+        title: 'FileFort',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
         home: const AuthWrapper(),

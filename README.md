@@ -1,4 +1,4 @@
-# R2 File Manager — Flutter Mobile App
+# FileFort — Flutter Mobile App
 
 A fully-featured **Cloudflare R2 file manager** for Android & iOS, matching the design and functionality of the companion web app.
 
