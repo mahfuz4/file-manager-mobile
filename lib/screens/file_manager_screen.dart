@@ -18,7 +18,7 @@ import '../widgets/folder_item_tile.dart';
 import '../widgets/file_list_skeleton.dart';
 import '../widgets/toolbar.dart';
 import '../widgets/upload_progress_bar.dart';
-import '../widgets/new_folder_bottom_sheet.dart';
+import '../widgets/new_folder_modal.dart';
 import '../widgets/rename_bottom_sheet.dart';
 import '../widgets/delete_bottom_sheet.dart';
 import '../widgets/share_bottom_sheet.dart';
@@ -86,7 +86,7 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const NewFolderBottomSheet(),
+      builder: (_) => const NewFolderModal(),
     );
   }
 
