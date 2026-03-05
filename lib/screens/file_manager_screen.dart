@@ -63,25 +63,37 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.lock_reset, color: AppColors.primary),
-              title: const Text('Change PIN', style: TextStyle(color: Colors.white)),
-              onTap: () async {
-                Navigator.pop(context);
-                final pinProvider = context.read<PinProvider>();
-                final result = await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChangeNotifierProvider.value(
-                      value: pinProvider,
-                      child: const _ChangePinFlow(),
-                    ),
+            Consumer<PinProvider>(
+              builder: (context, pinProvider, _) {
+                final isPinSet = pinProvider.isPinSet;
+                return ListTile(
+                  leading: Icon(
+                    isPinSet ? Icons.lock_reset : Icons.lock,
+                    color: AppColors.primary,
                   ),
+                  title: Text(
+                    isPinSet ? 'Change PIN' : 'Set PIN',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final result = await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChangeNotifierProvider.value(
+                          value: pinProvider,
+                          child: isPinSet
+                              ? const _ChangePinFlow()
+                              : const PinSetupScreen(isChanging: false),
+                        ),
+                      ),
+                    );
+                    if (result == true && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(isPinSet ? 'PIN changed successfully' : 'PIN set successfully')),
+                      );
+                    }
+                  },
                 );
-                if (result == true && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('PIN changed successfully')),
-                  );
-                }
               },
             ),
           ],
