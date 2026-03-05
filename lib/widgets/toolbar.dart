@@ -6,7 +6,9 @@ import '../services/file_manager_provider.dart';
 import '../theme/app_theme.dart';
 
 class Toolbar extends StatelessWidget {
-  const Toolbar({super.key});
+  final VoidCallback? onGalleryTap;
+  
+  const Toolbar({super.key, this.onGalleryTap});
 
   static const _filters = [
     ('all', 'ALL'),
@@ -26,39 +28,59 @@ class Toolbar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
             children: [
-              // Search bar
-              Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F0F0F),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border.withOpacity(0.7)),
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 12),
-                    const Icon(Icons.search, color: Color(0xFF444444), size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        onChanged: provider.setSearchQuery,
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          errorBorder: InputBorder.none,
-                          focusedErrorBorder: InputBorder.none,
-                          hoverColor: Colors.transparent,
-                          hintText: 'Search files…',
-                          hintStyle: TextStyle(color: Color(0xFF3A3A3A), fontSize: 13),
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
+              // Search bar with gallery button
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F0F0F),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border.withOpacity(0.7)),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 12),
+                          const Icon(Icons.search, color: Color(0xFF444444), size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              onChanged: provider.setSearchQuery,
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                focusedErrorBorder: InputBorder.none,
+                                hoverColor: Colors.transparent,
+                                hintText: 'Search files…',
+                                hintStyle: TextStyle(color: Color(0xFF3A3A3A), fontSize: 13),
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: onGalleryTap,
+                    child: Container(
+                      height: 40,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F0F0F),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border.withOpacity(0.7)),
+                      ),
+                      child: const Icon(Icons.photo_library, color: Color(0xFF666666), size: 16),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               // File type filter chips

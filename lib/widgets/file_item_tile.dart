@@ -1,8 +1,10 @@
 // lib/widgets/file_item_tile.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/file_item.dart';
 import '../theme/app_theme.dart';
+import '../services/r2_thumbnail_service.dart';
 
 class FileItemTile extends StatefulWidget {
   final FileItem file;
@@ -10,6 +12,7 @@ class FileItemTile extends StatefulWidget {
   final VoidCallback onLongPress;
   final VoidCallback onToggleSelect;
   final void Function(String action) onAction;
+  final R2ThumbnailService thumbnailService;
 
   const FileItemTile({
     super.key,
@@ -18,6 +21,7 @@ class FileItemTile extends StatefulWidget {
     required this.onLongPress,
     required this.onToggleSelect,
     required this.onAction,
+    required this.thumbnailService,
   });
 
   @override
@@ -48,6 +52,52 @@ class _FileItemTileState extends State<FileItemTile> {
       case FileType.archive:  return Icons.folder_zip_outlined;
       case FileType.code:     return Icons.code_outlined;
       case FileType.file:     return Icons.insert_drive_file_outlined;
+    }
+  }
+
+  Widget _buildThumbnail() {
+    switch (widget.file.fileType) {
+      case FileType.image:
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: CachedNetworkImage(
+            imageUrl: widget.thumbnailService.getThumbnailUrl(widget.file.key),
+            width: 32,
+            height: 32,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Icon(_typeIcon, color: _typeColor, size: 16),
+            errorWidget: (context, url, error) => Icon(_typeIcon, color: _typeColor, size: 16),
+          ),
+        );
+      case FileType.video:
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Stack(
+            children: [
+              CachedNetworkImage(
+                imageUrl: widget.thumbnailService.getThumbnailUrl(widget.file.key),
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Icon(_typeIcon, color: _typeColor, size: 16),
+                errorWidget: (context, url, error) => Icon(_typeIcon, color: _typeColor, size: 16),
+              ),
+              Positioned.fill(
+                child: Icon(Icons.play_circle_outline, color: Colors.white.withOpacity(0.8), size: 14),
+              ),
+            ],
+          ),
+        );
+      case FileType.document:
+        return Container(
+          decoration: BoxDecoration(
+            color: _typeColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(_typeIcon, color: _typeColor, size: 16),
+        );
+      default:
+        return Icon(_typeIcon, color: _typeColor, size: 16);
     }
   }
 
@@ -121,11 +171,9 @@ class _FileItemTileState extends State<FileItemTile> {
                       color: isSelected ? AppColors.primary.withOpacity(0.3) : color.withOpacity(0.25),
                     ),
                   ),
-                  child: Icon(
-                    isSelected ? Icons.check : _typeIcon,
-                    color: isSelected ? AppColors.primary : color,
-                    size: 16,
-                  ),
+                  child: isSelected
+                      ? Icon(Icons.check, color: AppColors.primary, size: 16)
+                      : _buildThumbnail(),
                 ),
                 const SizedBox(width: 10),
 
@@ -202,6 +250,14 @@ class _FileItemTileState extends State<FileItemTile> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            _ActionButton(
+                              icon: Icons.visibility_outlined,
+                              label: 'Preview',
+                              onTap: () {
+                                setState(() => _showActions = false);
+                                widget.onAction('preview');
+                              },
+                            ),
                             _ActionButton(
                               icon: Icons.drive_file_rename_outline,
                               label: 'Rename',

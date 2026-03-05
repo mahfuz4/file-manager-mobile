@@ -4,12 +4,16 @@
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/file_item.dart';
+import '../providers/pin_provider.dart';
 import '../services/auth_service.dart';
 import '../services/file_manager_provider.dart';
+import '../services/r2_thumbnail_service.dart';
+import 'file_preview_screen.dart';
+import 'pin_setup_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/breadcrumb_nav.dart';
 import '../widgets/bulk_action_bar.dart';
@@ -22,6 +26,7 @@ import '../widgets/new_folder_modal.dart';
 import '../widgets/rename_bottom_sheet.dart';
 import '../widgets/delete_bottom_sheet.dart';
 import '../widgets/share_bottom_sheet.dart';
+import 'carousel_gallery_screen.dart';
 
 class FileManagerScreen extends StatefulWidget {
   const FileManagerScreen({super.key});
@@ -43,6 +48,46 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
 
   Future<void> _signOut() async {
     await _authService.signOut();
+  }
+
+  void _showSettings() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.lock_reset, color: AppColors.primary),
+              title: const Text('Change PIN', style: TextStyle(color: Colors.white)),
+              onTap: () async {
+                Navigator.pop(context);
+                final pinProvider = context.read<PinProvider>();
+                final result = await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChangeNotifierProvider.value(
+                      value: pinProvider,
+                      child: const _ChangePinFlow(),
+                    ),
+                  ),
+                );
+                if (result == true && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('PIN changed successfully')),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ─── Upload ───────────────────────────────────────────────────────────────
@@ -118,17 +163,52 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
 
   void _downloadFile(String key) async {
     final provider = context.read<FileManagerProvider>();
-    final url = provider.getDownloadUrl(key);
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Downloading...')),
+    );
+    
+    try {
+      await provider.downloadFile(key);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open download link')),
+          const SnackBar(content: Text('Download complete')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Download failed: $e')),
         );
       }
     }
+  }
+
+  void _openGallery() {
+    final provider = context.read<FileManagerProvider>();
+    final imageFiles = provider.filteredFiles.where((file) {
+      final ext = file.name.split('.').last.toLowerCase();
+      return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi'].contains(ext);
+    }).toList();
+
+    if (imageFiles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No images or videos found')),
+      );
+      return;
+    }
+
+    final thumbnailService = R2ThumbnailService(provider.r2Service);
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CarouselGalleryScreen(
+          files: imageFiles,
+          initialIndex: 0,
+          thumbnailService: thumbnailService,
+        ),
+      ),
+    );
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
@@ -178,7 +258,7 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
                         ),
 
                       // Toolbar (search + filter)
-                      const Toolbar(),
+                      Toolbar(onGalleryTap: _openGallery),
 
                       // Upload progress
                       if (provider.uploadProgress.isNotEmpty) UploadProgressBar(),
@@ -300,6 +380,21 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
                   const SizedBox(width: 6),
                 ],
 
+                // Settings button (Change PIN)
+                GestureDetector(
+                  onTap: _showSettings,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.03),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.border.withOpacity(0.6)),
+                    ),
+                    child: const Icon(Icons.settings, size: 16, color: Color(0xFF555555)),
+                  ),
+                ),
+                const SizedBox(width: 6),
+
                 // Sign out button
                 GestureDetector(
                   onTap: _signOut,
@@ -390,7 +485,10 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
           ],
 
           // Files
-          ...files.map((file) => Padding(
+          ...files.map((file) {
+            final provider = Provider.of<FileManagerProvider>(context, listen: false);
+            final thumbnailService = R2ThumbnailService(provider.r2Service);
+            return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: FileItemTile(
                   file: file,
@@ -398,8 +496,10 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
                   onLongPress: () => provider.toggleSelect(file.key),
                   onToggleSelect: () => provider.toggleSelect(file.key),
                   onAction: (action) => _handleFileAction(action, file),
+                  thumbnailService: thumbnailService,
                 ),
-              )),
+              );
+          }),
 
           // Footer count
           _buildFooterCount(folders.length, files.length, provider.selectionCount),
@@ -551,6 +651,19 @@ class _FileManagerScreenState extends State<FileManagerScreen> {
 
   void _handleFileAction(String action, FileItem file) {
     switch (action) {
+      case 'preview':
+        final provider = Provider.of<FileManagerProvider>(context, listen: false);
+        final thumbnailService = R2ThumbnailService(provider.r2Service);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FilePreviewScreen(
+              file: file,
+              thumbnailService: thumbnailService,
+            ),
+          ),
+        );
+        break;
       case 'rename':
         _showRename(file.key, file.name);
         break;
@@ -572,5 +685,106 @@ class _BucketIconSmall extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Icon(Icons.storage_outlined, color: AppColors.primary, size: 14);
+  }
+}
+
+class _ChangePinFlow extends StatefulWidget {
+  const _ChangePinFlow();
+
+  @override
+  State<_ChangePinFlow> createState() => _ChangePinFlowState();
+}
+
+class _ChangePinFlowState extends State<_ChangePinFlow> {
+  bool _verified = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_verified) {
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          backgroundColor: AppTheme.background,
+          title: const Text('Verify Current PIN', style: TextStyle(color: Colors.white)),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: _VerifyCurrentPin(
+              onVerified: () => setState(() => _verified = true),
+            ),
+          ),
+        ),
+      );
+    }
+    return const PinSetupScreen(isChanging: true);
+  }
+}
+
+class _VerifyCurrentPin extends StatefulWidget {
+  final VoidCallback onVerified;
+  const _VerifyCurrentPin({required this.onVerified});
+
+  @override
+  State<_VerifyCurrentPin> createState() => _VerifyCurrentPinState();
+}
+
+class _VerifyCurrentPinState extends State<_VerifyCurrentPin> {
+  final _pinCtrl = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _pinCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onPinComplete(String pin) async {
+    final provider = context.read<PinProvider>();
+    final valid = await provider.verifyPin(pin);
+    if (valid) {
+      widget.onVerified();
+    } else {
+      setState(() => _error = 'Incorrect PIN');
+      _pinCtrl.clear();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.lock, size: 64, color: AppTheme.primary),
+        const SizedBox(height: 24),
+        const Text('Enter current PIN', style: TextStyle(color: Colors.white, fontSize: 18)),
+        const SizedBox(height: 32),
+        SizedBox(
+          width: 200,
+          child: TextField(
+            controller: _pinCtrl,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            obscureText: true,
+            maxLength: 4,
+            style: const TextStyle(fontSize: 32, letterSpacing: 16, color: Colors.white),
+            decoration: InputDecoration(
+              counterText: '',
+              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.border)),
+              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
+            ),
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (val) {
+              if (val.length == 4) _onPinComplete(val);
+            },
+          ),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 16),
+          Text(_error!, style: TextStyle(color: AppTheme.destructive)),
+        ],
+      ],
+    );
   }
 }

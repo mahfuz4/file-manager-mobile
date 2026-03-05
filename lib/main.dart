@@ -1,4 +1,5 @@
 // lib/main.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
+import 'providers/pin_provider.dart';
 import 'screens/auth_wrapper.dart';
 import 'services/file_manager_provider.dart';
 import 'theme/app_theme.dart';
@@ -44,13 +46,31 @@ Future<void> main() async {
   runApp(const FileFortApp());
 }
 
-class FileFortApp extends StatelessWidget {
+class FileFortApp extends StatefulWidget {
   const FileFortApp({super.key});
 
   @override
+  State<FileFortApp> createState() => _FileFortAppState();
+}
+
+class _FileFortAppState extends State<FileFortApp> {
+  final _pinProvider = PinProvider();
+
+  @override
+  void initState() {
+    super.initState();
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null) _pinProvider.clearPin();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => FileManagerProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => FileManagerProvider()),
+        ChangeNotifierProvider.value(value: _pinProvider),
+      ],
       child: MaterialApp(
         title: 'FileFort',
         debugShowCheckedModeBanner: false,

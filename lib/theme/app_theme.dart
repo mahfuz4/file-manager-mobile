@@ -41,6 +41,15 @@ class AppColors {
 }
 
 class AppTheme {
+  // Color shortcuts for convenience
+  static Color get background => AppColors.background;
+  static Color get card => AppColors.card;
+  static Color get surface => AppColors.surface;
+  static Color get border => AppColors.border;
+  static Color get primary => AppColors.primary;
+  static Color get destructive => AppColors.destructive;
+  static Color get success => AppColors.success;
+
   static ThemeData get dark {
     return ThemeData(
       useMaterial3: true,

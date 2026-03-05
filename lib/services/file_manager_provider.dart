@@ -2,12 +2,19 @@
 //
 // ChangeNotifier-based state: current path, file list, selection, search.
 
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import '../models/file_item.dart';
 import 'r2_service.dart';
 
 class FileManagerProvider extends ChangeNotifier {
   final R2Service _r2 = R2Service();
+
+  // Expose R2Service for other components
+  R2Service get r2Service => _r2;
 
   // Navigation
   final List<String> _pathStack = [''];
@@ -182,6 +189,24 @@ class FileManagerProvider extends ChangeNotifier {
 
   String getShareUrl(String key, int durationSeconds) =>
       _r2.generatePresignedUrl(key, expirySeconds: durationSeconds);
+
+  Future<void> downloadFile(String key) async {
+    final url = getDownloadUrl(key);
+    final fileName = p.basename(key);
+    
+    Directory? dir;
+    if (Platform.isAndroid) {
+      dir = Directory('/storage/emulated/0/Download');
+      if (!await dir.exists()) {
+        dir = await getExternalStorageDirectory();
+      }
+    } else {
+      dir = await getApplicationDocumentsDirectory();
+    }
+    
+    final savePath = '${dir!.path}/$fileName';
+    await Dio().download(url, savePath);
+  }
 
   /// Upload a file and track progress.
   Future<void> uploadFile({
